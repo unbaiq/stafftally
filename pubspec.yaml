@@ -1,0 +1,64 @@
+name: staff
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/staff.png
+  android: true
+  ios: true
+  web: false
+
+#flutter_icons:
+#  android: true
+#  ios: true
+#  image_path: "assets/staff.png"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  http: ^1.6.0
+  shared_preferences: ^2.5.3
+  geolocator: ^14.0.2
+  google_maps_flutter: any
+  camera: ^0.11.1
+  flutter_background_service: ^5.1.0
+  permission_handler: ^11.3.0
+  flutter_local_notifications: ^19.5.0
+  flutter_svg: ^2.0.17
+  intl: ^0.19.0
+  change_app_package_name: ^1.5.0
+  pdf: ^3.10.4
+  printing: ^5.10.4
+  fluttertoast: ^8.2.1
+  shimmer: ^3.0.0
+  dotted_border: ^2.0.0
+  firebase_core: ^2.5.0
+  firebase_messaging: ^14.7.3
+  flutter_native_splash: ^2.4.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+#  flutter_native_splash: ^2.4.5
+#  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/logo.png
+    - assets/logo.svg
+    - assets/login.png
+    - assets/person.png
+    - assets/staff.png
+    - assets/icons8-report-24.png
+    - assets/reports.png

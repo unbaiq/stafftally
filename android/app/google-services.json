@@ -1,0 +1,87 @@
+{
+  "project_info": {
+    "project_number": "637216558287",
+    "firebase_url": "https://unbaiq-trion-customer-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "unbaiq-trion-customer-app",
+    "storage_bucket": "unbaiq-trion-customer-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637216558287:android:5684a47bce96f5e62ebbba",
+        "android_client_info": {
+          "package_name": "com.example.trion_customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAp-mG8I-eUPENHE_n3H1lmTa3k-trktmo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637216558287:android:f5f5f4ad194258e62ebbba",
+        "android_client_info": {
+          "package_name": "com.example.trion_engineer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAp-mG8I-eUPENHE_n3H1lmTa3k-trktmo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637216558287:android:72f253202fea14cb2ebbba",
+        "android_client_info": {
+          "package_name": "com.example.trion_global_ui"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAp-mG8I-eUPENHE_n3H1lmTa3k-trktmo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:637216558287:android:cf5516e911b978232ebbba",
+        "android_client_info": {
+          "package_name": "com.stafftally.staff"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAp-mG8I-eUPENHE_n3H1lmTa3k-trktmo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
