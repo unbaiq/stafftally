@@ -108,6 +108,8 @@ class _LoginScreenState extends State<LoginScreen>
       SharedPreferences prefs = await SharedPreferences.getInstance();
 
       await prefs.setString("token", data["token"]);
+      print("TOKEN: ${prefs.getString("token")}");
+
       await prefs.setBool("isLoggedIn", true);
 
       print("LOGIN STATUS AFTER SET: ${prefs.getBool("isLoggedIn")}");

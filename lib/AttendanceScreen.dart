@@ -7,6 +7,8 @@ import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
+import 'StaffTrackingMapScreen.dart';
+
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
 
@@ -24,6 +26,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   double monthlySalary = 5000;
   DateTime? selectedDate;
   DateTime? endDate;
+  String? latestLat;
+  String? latestLng;
+  String? staffName;
+
+  bool apiLoaded = false;
 
   @override
   void initState() {
@@ -63,6 +70,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       setState(() => isLoading = false);
     }
   }
+
   void showTopSnackbar(String message, Color bgColor) {
     final overlay = Overlay.of(context);
     OverlayEntry entry = OverlayEntry(
@@ -188,6 +196,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
     return cnt;
   }
+
   int getWorkingDaysBetween(DateTime start, DateTime end) {
     if (end.isBefore(start)) return 0;
     final int total = end.difference(start).inDays + 1;
@@ -217,7 +226,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     return s;
   }
-
 
   double calculateSalaryForFiltered() {
     // Determine start & end for selected period
@@ -253,7 +261,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       );
       periodEnd = periodStart;
     } else {
-
       periodStart = DateTime(now.year, now.month, 1);
       periodEnd = DateTime(
         now.year,
@@ -272,10 +279,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       periodStart.month,
     );
     final summaryRaw = getAttendanceSummaryForFiltered();
-    final summary = applyPaidLeaveRule(
-      summaryRaw,
-    );
-
+    final summary = applyPaidLeaveRule(summaryRaw);
 
     final double perDay =
         (workingDaysInStartMonth > 0)
@@ -294,7 +298,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return totalPay;
   }
 
-  // ---------- Paid-leave rule (if not present already) ----------
 
   Future<void> fetchAttendanceList() async {
     setState(() => isLoading = true);
@@ -397,11 +400,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             DateTime weekStart = now.subtract(Duration(days: now.weekday - 1));
             DateTime weekEnd = weekStart.add(const Duration(days: 6));
 
-            return recordDate.isAfter(weekStart.subtract(const Duration(days: 1))) &&
+            return recordDate.isAfter(
+                  weekStart.subtract(const Duration(days: 1)),
+                ) &&
                 recordDate.isBefore(weekEnd.add(const Duration(days: 1)));
-          }
-
-          else if (selectedFilter == "Month") {
+          } else if (selectedFilter == "Month") {
             return recordDate.month == now.month && recordDate.year == now.year;
           } else if (selectedFilter == "Year") {
             return recordDate.year == now.year;
@@ -453,9 +456,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         checkIn = DateTime.parse(s);
       }
 
-      DateTime grace = DateTime(checkIn.year, checkIn.month, checkIn.day, 10, 15);
-      DateTime halfLimit =
-      DateTime(checkIn.year, checkIn.month, checkIn.day, 10, 30);
+      DateTime grace = DateTime(
+        checkIn.year,
+        checkIn.month,
+        checkIn.day,
+        10,
+        15,
+      );
+      DateTime halfLimit = DateTime(
+        checkIn.year,
+        checkIn.month,
+        checkIn.day,
+        10,
+        30,
+      );
 
       if (checkIn.isAfter(halfLimit)) return "HALF DAY PRESENT";
       if (checkIn.isAfter(grace)) return "LATE PRESENT";
@@ -464,7 +478,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return "ABSENT";
     }
   }
-
 
   Map<String, int> getAttendanceSummaryForFiltered() {
     int full = 0, late = 0, half = 0, absent = 0, leave = 0;
@@ -545,7 +558,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           InkWell(
             onTap: showAttendanceReport,
             child: Row(
-              children:  [
+              children: [
                 Padding(
                   padding: EdgeInsets.only(right: 8.0),
                   child: Text(
@@ -569,148 +582,163 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-            child: isLoading
-                ? _filterShimmerUI()   // 🔥 Show shimmer when loading
-                : Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Filter dropdown
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: DropdownButton<String>(
-                        value: selectedFilter,
-                        underline: const SizedBox(),
-                        items: filterOptions
-                            .map((e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(e),
-                        ))
-                            .toList(),
-                        onChanged: (val) {
-                          if (val == null) return;
-                          setState(() {
-                            selectedFilter = val;
-                          });
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // APPLY BUTTON
-                    ElevatedButton(
-                      onPressed: () async {
-                        setState(() => isLoading = true);
-
-                        await Future.delayed(const Duration(milliseconds: 500));
-
-                        if (selectedFilter != "Date") {
-                          selectedDate = null;
-                        }
-
-                        applyFilters();
-
-                        setState(() => isLoading = false);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade700,
-                        padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "Apply",
-                        style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-
-
-                    const SizedBox(width: 12),
-                    // REFRESH
-                    InkWell(
-                      onTap: () {
-                        selectedDate = null;
-                        selectedFilter = "Month";
-                        fetchAttendanceList();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.refresh),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 12),
-
-                // DATE PICKER (only for Date filter)
-                if (selectedFilter == "Date")
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: InkWell(
-                      onTap: pickDate,
-                      child: Container(
-                        width: 250,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+            child:
+                isLoading
+                    ? _filterShimmerUI() // 🔥 Show shimmer when loading
+                    : Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const SizedBox(width: 8),
-                            Text(
-                              selectedDate == null
-                                  ? "Select Date Attendance"
-                                  : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue.shade900,
+                            // Filter dropdown
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: DropdownButton<String>(
+                                value: selectedFilter,
+                                underline: const SizedBox(),
+                                items:
+                                    filterOptions
+                                        .map(
+                                          (e) => DropdownMenuItem(
+                                            value: e,
+                                            child: Text(e),
+                                          ),
+                                        )
+                                        .toList(),
+                                onChanged: (val) {
+                                  if (val == null) return;
+                                  setState(() {
+                                    selectedFilter = val;
+                                  });
+                                },
                               ),
                             ),
+
+                            const SizedBox(width: 12),
+
+                            // APPLY BUTTON
+                            ElevatedButton(
+                              onPressed: () async {
+                                setState(() => isLoading = true);
+
+                                await Future.delayed(
+                                  const Duration(milliseconds: 500),
+                                );
+
+                                if (selectedFilter != "Date") {
+                                  selectedDate = null;
+                                }
+
+                                applyFilters();
+
+                                setState(() => isLoading = false);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue.shade700,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 25,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                "Apply",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 12),
+
+                            // LOCATION ICON BUTTON
+                            _buildIconButton(
+                              icon: Icons.location_on_sharp,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => StaffTrackingMapScreen()),
+                                );
+                              },
+                            ),
+
+
+                            const SizedBox(width: 12),
+                            _buildIconButton(
+                              icon: Icons.refresh,
+                              onTap: () {
+                                selectedDate = null;
+                                selectedFilter = "Month";
+                                fetchAttendanceList();
+                              },
+                            ),
                           ],
                         ),
-                      ),
+
+                        const SizedBox(height: 12),
+
+                        // DATE PICKER (only for Date filter)
+                        if (selectedFilter == "Date")
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: InkWell(
+                              onTap: pickDate,
+                              child: Container(
+                                width: 250,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      selectedDate == null
+                                          ? "Select Date Attendance"
+                                          : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.blue.shade900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+
+                      ],
                     ),
-                  ),
-              ],
-            ),
           ),
 
           Expanded(
@@ -837,6 +865,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
   }
+
   // CARD
   Widget _attendanceCard(Map item) {
     return AnimatedContainer(
@@ -1146,7 +1175,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     child: ListView(
                       controller: controller,
                       children: [
-
                         Container(
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
@@ -1162,7 +1190,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                 color: Colors.blue.shade100.withOpacity(0.4),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
-                              )
+                              ),
                             ],
                           ),
                           child: Column(
@@ -1173,13 +1201,29 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                 spacing: 12,
                                 runSpacing: 12,
                                 children: [
-                                  _dashStat("PRESENT", s["full"]!, Colors.green, ),
-                                  _dashStat("LATE PRESENT", s["late"]!, Colors.orange, ),
-                                  _dashStat("HALF DAY", s["half"]!, Colors.red, ),
-                                  _dashStat("PAID LEAVE", s["paidLeave"]!, Colors.blue),
-                                  _dashStat("ABSENT", s["absent"]!, Colors.redAccent,),
+                                  _dashStat(
+                                    "PRESENT",
+                                    s["full"]!,
+                                    Colors.green,
+                                  ),
+                                  _dashStat(
+                                    "LATE PRESENT",
+                                    s["late"]!,
+                                    Colors.orange,
+                                  ),
+                                  _dashStat("HALF DAY", s["half"]!, Colors.red),
+                                  _dashStat(
+                                    "PAID LEAVE",
+                                    s["paidLeave"]!,
+                                    Colors.blue,
+                                  ),
+                                  _dashStat(
+                                    "ABSENT",
+                                    s["absent"]!,
+                                    Colors.redAccent,
+                                  ),
                                 ],
-                              )
+                              ),
                             ],
                           ),
                         ),
@@ -1217,7 +1261,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
                               // TOTAL ATTENDANCE ROW
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     "Total Attendance Count",
@@ -1241,7 +1286,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
                               // TOTAL LEAVE REQUESTED ROW
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text(
                                     "Total Leave Requested",
@@ -1277,7 +1323,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                 ),
                                 child: const Text(
                                   "Close",
@@ -1299,7 +1347,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                 ),
                                 child: const Text(
                                   "Download PDF",
@@ -1326,46 +1376,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-
-  Widget _dashStat(String title, int value, Color color,) {
-  return Container(
-  width: (MediaQuery.of(context).size.width / 2) - 50,
-  padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
-  decoration: BoxDecoration(
-  color: color.withOpacity(0.10),
-  borderRadius: BorderRadius.circular(16),
-  border: Border.all(color: color.withOpacity(0.25), width: 1),
-  ),
-  child: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-  const SizedBox(height: 8),
-  Text(
-  value.toString(),
-  style: TextStyle(
-  fontSize: 22,
-  fontWeight: FontWeight.bold,
-  color: color,
-  ),
-  ),
-  const SizedBox(height: 4),
-  Text(
-  title,
-  style: const TextStyle(
-  fontSize: 14,
-  color: Colors.black87,
-  fontWeight: FontWeight.w600,
-  ),
-  ),
-  ],
-  ),
-  );
+  Widget _dashStat(String title, int value, Color color) {
+    return Container(
+      width: (MediaQuery.of(context).size.width / 2) - 50,
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 15),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.25), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          Text(
+            value.toString(),
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _downloadPDF() async {
     try {
       final s = getAttendanceSummaryForFiltered();
-
 
       final pdf = pw.Document();
 
@@ -1377,7 +1425,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-
                 // ---------------- HEADER -----------------
                 pw.Center(
                   child: pw.Column(
@@ -1410,9 +1457,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text("Employee Name: ${ userData?["name"] ?? "Not Available Staff" }"),
+                      pw.Text(
+                        "Employee Name: ${userData?["name"] ?? "Not Available Staff"}",
+                      ),
                       pw.SizedBox(height: 6),
-                      pw.Text("Generated On: ${DateTime.now().toString().split('.')[0]}"),
+                      pw.Text(
+                        "Generated On: ${DateTime.now().toString().split('.')[0]}",
+                      ),
                     ],
                   ),
                 ),
@@ -1434,18 +1485,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text(
                             "Attendance Type",
-                            style: pw.TextStyle(
-                              fontWeight: pw.FontWeight.bold,
-                            ),
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                           ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text(
                             "Count",
-                            style: pw.TextStyle(
-                              fontWeight: pw.FontWeight.bold,
-                            ),
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                           ),
                         ),
                       ],
@@ -1476,9 +1523,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           padding: const pw.EdgeInsets.all(8),
                           child: pw.Text(
                             "Summary",
-                            style: pw.TextStyle(
-                              fontWeight: pw.FontWeight.bold,
-                            ),
+                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                           ),
                         ),
                         pw.Padding(
@@ -1501,7 +1546,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   children: [
                     pw.Column(
                       children: [
-                        pw.Text("${ userData?["name"] ?? "Not Available Staff" }"),
+                        pw.Text(
+                          "${userData?["name"] ?? "Not Available Staff"}",
+                        ),
                         pw.Text("Employee Signature"),
                       ],
                     ),
@@ -1524,25 +1571,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         bytes: await pdf.save(),
         filename: "attendance_slip.pdf",
       );
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("PDF failed: $e"),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text("PDF failed: $e"), backgroundColor: Colors.red),
       );
     }
   }
 
-// ---------------- TABLE ROW HELPER -----------------
+  // ---------------- TABLE ROW HELPER -----------------
   pw.TableRow _tableRow(String title, int value) {
     return pw.TableRow(
       children: [
-        pw.Padding(
-          padding: const pw.EdgeInsets.all(8),
-          child: pw.Text(title),
-        ),
+        pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(title)),
         pw.Padding(
           padding: const pw.EdgeInsets.all(8),
           child: pw.Text(value.toString()),
@@ -1551,6 +1591,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
-
-
+  Widget _buildIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(icon, size: 25, color: Colors.blue.shade700),
+      ),
+    );
+  }
 }
