@@ -25,20 +25,12 @@ class _TaskListScreenState extends State<TaskListScreen> {
   bool isLoading = false;
   bool isUpdating = false;
 
-  // Add near other fields
-  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  bool notificationsInitialized = false;
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize local notifications (for Android & iOS)
-
-    _initLocalNotifications();
     // Load task list
     fetchTaskData();
-
     // Scroll listener
     scrollController.addListener(() {
       if (scrollController.position.pixels ==
@@ -47,30 +39,33 @@ class _TaskListScreenState extends State<TaskListScreen> {
         fetchTaskData();
       }
     });
-
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print("New Push: ${message.notification?.title}");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message.notification?.body ?? "New Task Added"),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-      fetchTaskData();
-    });
-
+    getFcmToken();
+    // LISTEN: Notification received when app is OPEN
+    // FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    //   print("📩 New Push: ${message.notification?.title}");
+    //
+    //   // Show notification popup inside app
+    //   if (mounted) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       SnackBar(
+    //         content: Text(message.notification?.body ?? "New Task Added"),
+    //         duration: const Duration(seconds: 2),
+    //       ),
+    //     );
+    //   }
+    //
+    //   // Auto refresh task list
+    //   fetchTaskData();
+    // });
+    // LISTEN: When user taps the notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print("🔗 Notification Clicked");
+
+      // Open TaskListScreen (if not already open)
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const TaskListScreen()),
       );
-    });
-
-    Timer.periodic(Duration(minutes: 1), (_) {
-      fetchTaskData();
     });
   }
 
@@ -78,6 +73,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
   void dispose() {
     scrollController.dispose();
     super.dispose();
+  }
+  void getFcmToken() async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    print("Device FCM Token: $token");
   }
 
   Map<String, int> getMonthlyCompletedCount() {
@@ -97,125 +96,24 @@ class _TaskListScreenState extends State<TaskListScreen> {
     return data;
   }
 
-  void _initLocalNotifications() async {
-    if (notificationsInitialized) return;
-
-    const AndroidInitializationSettings androidSettings =
-    AndroidInitializationSettings('icon');
-
-    final DarwinInitializationSettings iosSettings =
-    DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-
-    final InitializationSettings initSettings =
-    InitializationSettings(android: androidSettings, iOS: iosSettings);
-
-    await flutterLocalNotificationsPlugin.initialize(initSettings);
-    notificationsInitialized = true;
+  String shortText(String text, {int limit = 20}) {
+    if (text.length <= limit) return text;
+    return "${text.substring(0, limit)}...";
   }
 
-  // 4) fetchTasksRaw
-  static Future<String> fetchTasksRaw() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString("token");
-    final url = Uri.parse("https://stafftally.com/api/staff/activities");
-    final response = await http.get(
-      url,
-      headers: {"Authorization": "Bearer $token", "Accept": "application/json"},
-    );
-    if (response.statusCode == 200) {
-      return response.body;
-    } else {
-      throw Exception("Failed to load tasks");
-    }
-  }
-
-  // 5) new fetchTaskData using raw fetch
   Future<void> fetchTaskData() async {
     if (!mounted) return;
     setState(() => isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Fetch raw JSON
-      String raw = await fetchTasksRaw();
-      final decoded = jsonDecode(raw);
-
-      // NEW LIST LENGTH
-      int newLength = decoded.length;
-
-      // OLD LIST LENGTH
-      int? oldLength = prefs.getInt("task_length");
-
-      bool changed = false;
-
-      // Compare list length
-      if (oldLength != null && oldLength != newLength) {
-        changed = true;
-      }
-
-      // Update UI list
-      taskList = taksModelFromJson(jsonEncode(decoded));
-
-      // If changed => Notification
-      if (changed) {
-        await showLocalNotification(
-          id: 1,
-          title: "New Task Added",
-          body: "A new task has been added in the dashboard.",
-          payload: "task_update",
-        );
-        print("🔔 NEW DATA DETECTED");
-      }
-
-      // Save new length
-      await prefs.setInt("task_length", newLength);
-
+      taskList = await fetchTasks();
     } catch (e) {
-      print("Error: $e");
+      print("Error fetching tasks: $e");
     }
 
     if (!mounted) return;
     setState(() => isLoading = false);
   }
-
-
-  // 6) showLocalNotification function (same as earlier)
-  Future<void> showLocalNotification({
-    required int id,
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
-    const AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
-      'task_channel',
-      'Task Updates',
-      channelDescription: 'Notifications for task updates',
-      importance: Importance.high,
-      priority: Priority.high,
-      ticker: 'ticker',
-      icon: 'icon', // ← IMPORTANT
-    );
-
-    const NotificationDetails details = NotificationDetails(
-      android: androidDetails,
-      iOS: DarwinNotificationDetails(),
-    );
-
-    await flutterLocalNotificationsPlugin.show(
-      id,
-      title,
-      body,
-      details,
-      payload: payload,
-    );
-  }
-
 
   static Future<List<TaksModel>> fetchTasks() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -257,10 +155,10 @@ class _TaskListScreenState extends State<TaskListScreen> {
   }
 
   Future<void> updateTaskStatus(
-    int taskId,
-    String status,
-    String remark,
-  ) async {
+      int taskId,
+      String status,
+      String remark,
+      ) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString("token");
     print("Token: $token");
@@ -378,14 +276,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const CreateActivityScreen(),
-                    ),
+                    MaterialPageRoute(builder: (context) => const CreateActivityScreen()),
                   ).then((_) {
                     setState(() => isLoading = true);
                     fetchTaskData();
                   });
                 },
+
               ),
             ),
           ],
@@ -395,7 +292,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16),
 
-        child: Column(
+        child:
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -418,11 +316,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       ),
                       child: Row(
                         children: const [
-                          Icon(
-                            Icons.bar_chart_rounded,
-                            color: Colors.blue,
-                            size: 20,
-                          ),
+                          Icon(Icons.bar_chart_rounded,
+                              color: Colors.blue, size: 20),
                           SizedBox(width: 6),
                           Text(
                             "Task Report",
@@ -480,6 +375,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
               ],
             ),
 
+
             const SizedBox(height: 12),
 
             if (selectedDate != null)
@@ -520,28 +416,29 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
             const SizedBox(height: 18),
             Expanded(
-              child:
-                  isLoading || isUpdating
-                      ? taskListShimmer() // FULL SCREEN shimmer while loading or updating
-                      : ListView.builder(
-                        controller: scrollController,
-                        padding: const EdgeInsets.only(bottom: 80),
-                        itemCount: filteredTasks.length,
-                        itemBuilder: (context, i) {
-                          final task = filteredTasks[i];
-                          return taskCard(
-                            task.id,
-                            task.activityName,
-                            task.description,
-                            DateFormat("dd MMM yyyy").format(task.startDate),
-                            DateFormat("dd MMM yyyy").format(task.dueDate),
-                            task.status ?? "N/A",
-                            task.remark ?? "No remarks",
-                            task.startDate,
-                          );
-                        },
-                      ),
+              child: isLoading || isUpdating
+                  ? taskListShimmer()   // FULL SCREEN shimmer while loading or updating
+                  : ListView.builder(
+                controller: scrollController,
+                padding: const EdgeInsets.only(bottom: 80),
+                itemCount: filteredTasks.length,
+                itemBuilder: (context, i) {
+                  final task = filteredTasks[i];
+                  return taskCard(
+                    task.id,
+                    task.activityName,
+                    task.description,
+                    DateFormat("dd MMM yyyy").format(task.startDate),
+                    DateFormat("dd MMM yyyy").format(task.dueDate),
+                    task.status ?? "N/A",
+                    task.remark ?? "No remarks",
+                    task.startDate,
+                  );
+                },
+              ),
             ),
+
+
 
             const SizedBox(height: 15),
           ],
@@ -549,7 +446,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
       ),
     );
   }
-
   void showTaskReportDialog() {
     final monthlyData = getMonthlyCompletedCount();
 
@@ -557,13 +453,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
       context: context,
       builder: (context) {
         return Dialog(
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 30,
-            vertical: 40,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 40),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           backgroundColor: Colors.white,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -580,11 +471,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         color: Colors.blue.shade100.withOpacity(0.4),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.bar_chart_rounded,
-                        color: Colors.blue,
-                        size: 26,
-                      ),
+                      child: const Icon(Icons.bar_chart_rounded,
+                          color: Colors.blue, size: 26),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -606,19 +494,18 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       padding: EdgeInsets.symmetric(vertical: 20),
                       child: Text(
                         "No completed tasks available.",
-                        style: TextStyle(fontSize: 15, color: Colors.black54),
+                        style:
+                        TextStyle(fontSize: 15, color: Colors.black54),
                       ),
                     ),
                   ),
 
                 // ---------- MONTH LIST ----------
                 ...monthlyData.entries.map(
-                  (e) => Container(
+                      (e) => Container(
                     margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
-                    ),
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(14),
@@ -627,7 +514,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                           color: Colors.grey.shade300,
                           offset: const Offset(0, 2),
                           blurRadius: 5,
-                        ),
+                        )
                       ],
                     ),
                     child: Row(
@@ -636,11 +523,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         // MONTH
                         Row(
                           children: [
-                            const Icon(
-                              Icons.calendar_today_outlined,
-                              size: 18,
-                              color: Colors.black54,
-                            ),
+                            const Icon(Icons.calendar_today_outlined,
+                                size: 18, color: Colors.black54),
                             const SizedBox(width: 8),
                             Text(
                               e.key,
@@ -655,9 +539,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                         // COUNT BADGE
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 5,
-                          ),
+                              horizontal: 12, vertical: 5),
                           decoration: BoxDecoration(
                             color: Colors.green.shade100,
                             borderRadius: BorderRadius.circular(10),
@@ -669,7 +551,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
+                        )
                       ],
                     ),
                   ),
@@ -700,6 +582,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
       },
     );
   }
+
 
   Widget taskListShimmer() {
     return Shimmer.fromColors(
@@ -738,17 +621,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
       ),
     );
   }
-
   Widget taskCard(
-    int taskId,
-    String staffName,
-    String description,
-    String start,
-    String end,
-    String status,
-    String remarks,
-    DateTime date,
-  ) {
+      int taskId,
+      String staffName,
+      String description,
+      String start,
+      String end,
+      String status,
+      String remarks,
+      DateTime date,
+      ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -1054,16 +936,14 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       ElevatedButton(
                         onPressed: () async {
                           Navigator.pop(context);
-                          setState(() => isUpdating = true); // 🔥 Show shimmer
+                          setState(() => isUpdating = true);   // 🔥 Show shimmer
                           await updateTaskStatus(
                             taskId,
                             selectedStatus.toLowerCase(),
                             remarksController.text,
                           );
-                          await fetchTaskData(); // Reload updated tasks
-                          setState(
-                            () => isUpdating = false,
-                          ); // 🔥 Remove shimmer
+                          await fetchTaskData();  // Reload updated tasks
+                          setState(() => isUpdating = false);  // 🔥 Remove shimmer
                         },
 
                         style: ElevatedButton.styleFrom(

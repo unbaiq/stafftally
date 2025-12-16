@@ -1110,7 +1110,7 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
       child: Transform.translate(
         offset: Offset(0, 0),
         child: Container(
-          height: MediaQuery.of(context).size.height * 0.39,
+          height: MediaQuery.of(context).size.height * 0.44,
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
