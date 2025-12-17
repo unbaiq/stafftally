@@ -20,14 +20,14 @@ void main() async {
   await Firebase.initializeApp();
 
   // Background Notification Handler
-  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  //
-  // // 🔥 Request Notification Permission (MANDATORY for Android 13+ & iOS)
-  // await FirebaseMessaging.instance.requestPermission(
-  //   alert: true,
-  //   badge: true,
-  //   sound: true,
-  // );
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // 🔥 Request Notification Permission (MANDATORY for Android 13+ & iOS)
+  await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
 
   // OPTIONAL: Delay for Splash Screen
   await Future.delayed(const Duration(seconds: 2));
