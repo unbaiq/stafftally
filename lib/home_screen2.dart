@@ -167,7 +167,7 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
 
     if (_mapReady && _mapController != null) {
       _mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentLatLng!, 17),
+        CameraUpdate.newLatLngZoom(_currentLatLng!, 13),
       );
     }
   }
@@ -287,7 +287,7 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
         // 🔥 Map ko office location par zoom karao
         if (officeLat != 0.0 && officeLng != 0.0 && _mapController != null) {
           _mapController!.animateCamera(
-            CameraUpdate.newLatLngZoom(LatLng(officeLat, officeLng), 16),
+            CameraUpdate.newLatLngZoom(LatLng(officeLat, officeLng), 5),
           );
         }
       }
@@ -949,72 +949,68 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
   // ---------------- UI COMPONENTS ---------------- //
   Widget _mapSection() {
     return SafeArea(
-      child: SingleChildScrollView(
-        // padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // ---------------- MAP SECTION ---------------- //
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  height: 290,
-                  width: double.infinity,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(0),
-                    child: GoogleMap(
-                      initialCameraPosition:
-                          _currentLatLng == null
-                              ? _defaultCamera
-                              : CameraPosition(
-                                target: _currentLatLng!,
-                                zoom: 5,
-                              ),
-                      onMapCreated: (controller) {
-                        _mapController = controller;
-                        _mapReady = true;
-                        _getCurrentLocation();
-                        _captureAndSendLocation();
-                      },
-
-                      circles: {
-                        Circle(
-                          circleId: CircleId("office"),
-                          center: LatLng(userLat, userLng),
-                          radius: geoRadius,
-                          fillColor:
-                              isInside
-                                  ? Colors.green.withOpacity(0.15)
-                                  : Colors.red.withOpacity(0.15),
-                          strokeColor: isInside ? Colors.green : Colors.red,
-                          strokeWidth: 3,
-                        ),
-                      },
-                      myLocationEnabled: true,
-                      markers: {
-                        if (_currentLatLng != null)
-                          Marker(
-                            markerId: const MarkerId("me"),
-                            position: _currentLatLng!,
-                            icon: _personIcon ?? BitmapDescriptor.defaultMarker,
-                          ),
-                      },
-                    ),
-                  ),
+      child: Column(
+        children: [
+          // 🔹 MAP (Fixed Height)
+          SizedBox(
+            height: 290,
+            width: double.infinity,
+            child: GoogleMap(
+              initialCameraPosition: _currentLatLng == null
+                  ? _defaultCamera
+                  : CameraPosition(
+                target: _currentLatLng!,
+                zoom: 14, // better UX
+              ),
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _mapReady = true;
+                _getCurrentLocation();
+                _captureAndSendLocation();
+              },
+              myLocationEnabled: true,
+              circles: {
+                Circle(
+                  circleId: const CircleId("office"),
+                  center: LatLng(userLat, userLng),
+                  radius: geoRadius,
+                  fillColor: isInside
+                      ? Colors.green.withOpacity(0.15)
+                      : Colors.red.withOpacity(0.15),
+                  strokeColor: isInside ? Colors.green : Colors.red,
+                  strokeWidth: 3,
                 ),
-
-              ],
+              },
+              markers: {
+                if (_currentLatLng != null)
+                  Marker(
+                    markerId: const MarkerId("me"),
+                    position: _currentLatLng!,
+                    icon:
+                    _personIcon ?? BitmapDescriptor.defaultMarker,
+                  ),
+              },
             ),
-            _attendanceCard(),
-            const SizedBox(height: 7),
-            _quickActions(),
-            const SizedBox(height: 17),
-          ],
-        ),
+          ),
+
+          // 🔹 SCROLLABLE CONTENT
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: [
+                  _attendanceCard(),
+                  const SizedBox(height: 8),
+                  _quickActions(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
+
 
   Widget _fullScreenShimmer() {
     return Shimmer.fromColors(
@@ -1106,100 +1102,94 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
 
   Widget _attendanceCard() {
     return Padding(
-      padding: const EdgeInsets.all(0),
-      child: Transform.translate(
-        offset: Offset(0, 0),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.44,
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.shade300,
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: const Text(
-                  "Today's Attendance",
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-              ),
-              const SizedBox(height: 25),
-              loadingToday
-                  ? const Center(
-                child: CircularProgressIndicator(color: Colors.blueAccent),
-              )
-                  : _attendanceDetails(),
-            ],
-          ),
+      padding: const EdgeInsets.all(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade300,
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // 👈 very important
+          children: [
+            const Text(
+              "Today's Attendance",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+
+            const SizedBox(height: 20),
+
+            loadingToday
+                ? const Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            )
+                : _attendanceDetails(),
+          ],
         ),
       ),
     );
   }
 
 
-  Widget _attendanceDetails() {
+  Widget _emptyImageBox(String label) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 🔹 IMAGES + TIME BELOW
-        _attendanceImagesRow(),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _button(
-              label: "Check-In",
-              loading: isCheckingIn,
-              color: Colors.green,
-              onTap: (isCheckingIn || isCheckInDone) ? null : checkIn,
+        Container(
+          height: 160,
+          width: 140,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: Colors.grey.shade100,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade600),
             ),
-            _button(
-              label: "Check-Out",
-              loading: isCheckingOut,
-              color: Colors.red,
-              onTap: !isCheckInDone || isCheckOutDone ? null : checkOut,
-            ),
-          ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          "--:--",
+          style: TextStyle(color: Colors.grey),
         ),
       ],
     );
   }
 
-  Widget _attendanceImageWithTime(String img, String time, Color color) {
+  Widget _attendanceImageWithTime(
+      String img,
+      String time,
+      Color color,
+      ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         GestureDetector(
           onTap: () {
             _openImagePreview(getFullImageUrl(img));
           },
-          child: Transform.translate( offset: Offset(0, -6),
-            child: DottedBorder(
-              color: Colors.grey,
-              strokeWidth: 1,
-              dashPattern: [5, 4],
-              borderType: BorderType.RRect,
-              radius: Radius.circular(12),
-              child: Container(
-                height: 170,
+          child: DottedBorder(
+            color: Colors.grey,
+            strokeWidth: 1,
+            dashPattern: const [5, 4],
+            borderType: BorderType.RRect,
+            radius: const Radius.circular(12),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                getFullImageUrl(img),
+                height: 160,
                 width: 140,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(getFullImageUrl(img), fit: BoxFit.cover),
-                ),
+                fit: BoxFit.cover,
               ),
             ),
           ),
@@ -1207,22 +1197,18 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
 
         const SizedBox(height: 8),
 
-
-        Padding(
-          padding: const EdgeInsets.only(right: 18),
-          child: Text(
-            time,
-            textAlign: TextAlign.start,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: color,
           ),
         ),
       ],
     );
   }
+
 
   Widget _attendanceImagesRow() {
     return Row(
@@ -1256,21 +1242,44 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
     );
   }
 
-  Widget _emptyImageBox(String label) {
-    return Transform.translate( offset: Offset(0, -16),
-      child: Container(
-        height: 170,
-        width: 120,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(5),
-          color: Colors.grey.shade100,
+  Widget _attendanceDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // 🔹 Images Row
+        _attendanceImagesRow(),
+
+        const SizedBox(height: 20),
+
+        // 🔹 Buttons Row
+        Row(
+          children: [
+            Expanded(
+              child: _button(
+                label: "Check-In",
+                loading: isCheckingIn,
+                color: Colors.green,
+                onTap: (isCheckingIn || isCheckInDone) ? null : checkIn,
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: _button(
+                label: "Check-Out",
+                loading: isCheckingOut,
+                color: Colors.red,
+                onTap: (!isCheckInDone || isCheckOutDone) ? null : checkOut,
+              ),
+            ),
+          ],
         ),
-        child: Center(
-          child: Text(label, style: TextStyle(color: Colors.grey.shade600)),
-        ),
-      ),
+      ],
     );
   }
+
+
 
   Widget _button({
     required String label,
@@ -1317,78 +1326,75 @@ class _HomeScreen2State extends State<HomeScreen2> with WidgetsBindingObserver {
 
   Widget _quickActions() {
     return Padding(
-      padding: const EdgeInsets.all(5),
-      child: Column(
-        children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ApplyLeaveScreen()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
               ),
-              child: Row(
-                children: [
-                  // ICON LEFT
-                  Container(
-                    height: 50,
-                    width: 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFEFF4FF),
-                    ),
-                    child: Icon(
-                      Icons.note_add,
-                      color: Colors.blue.shade700,
-                      size: 26,
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // TEXT
-                  Expanded(
-                    child: Text(
-                      "Apply for Leave",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                  ),
-
-                  // RIGHT ARROW
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      color: Colors.blue.shade700,
-                      size: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
-        ],
+          child: Row(
+            children: [
+              // 🔹 LEFT ICON
+              Container(
+                height: 48,
+                width: 48,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFEFF4FF),
+                ),
+                child: Icon(
+                  Icons.note_add_rounded,
+                  color: Colors.blue.shade700,
+                  size: 26,
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              // 🔹 TEXT
+              const Expanded(
+                child: Text(
+                  "Apply for Leave",
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+              // 🔹 RIGHT ARROW
+              Container(
+                height: 36,
+                width: 36,
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: Colors.blue.shade700,
+                  size: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

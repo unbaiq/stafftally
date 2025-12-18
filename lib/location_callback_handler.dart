@@ -144,25 +144,25 @@ void onStart(ServiceInstance service) async {
       }
 
 
-      flutterLocalNotificationsPlugin.show(
-        888,
-        'COOL SERVICE',
-        'Location Updated at ${DateTime.now()}',
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'my_foreground',
-            'MY FOREGROUND SERVICE',
-            icon: 'ic_bg_service_small',
-            ongoing: true,
-          ),
-        ),
-      );
+      // flutterLocalNotificationsPlugin.show(
+      //   888,
+      //   'COOL SERVICE',
+      //   'Location Updated at ${DateTime.now()}',
+      //   const NotificationDetails(
+      //     android: AndroidNotificationDetails(
+      //       'my_foreground',
+      //       'MY FOREGROUND SERVICE',
+      //       icon: 'ic_bg_service_small',
+      //       ongoing: true,
+      //     ),
+      //   ),
+      // );
 
       // UPDATE FOREGROUND NOTIFICATION (Correct Method)
-      service.setForegroundNotificationInfo(
-        title: "My App Service",
-        content: "Updated at ${DateTime.now()}",
-      );
+      // service.setForegroundNotificationInfo(
+      //   title: "My App Service",
+      //   content: "Updated at ${DateTime.now()}",
+      // );
 
     } else {
       print("SERVICE NOT IN FOREGROUND");

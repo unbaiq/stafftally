@@ -381,54 +381,66 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   void applyFilters() {
     DateTime now = DateTime.now();
 
-    filteredList =
-        attendanceList.where((item) {
-          if (item == null) return false;
-          // ensure Map
-          if (item is! Map) return false;
+    filteredList = attendanceList.where((item) {
+      if (item == null || item is! Map) return false;
 
-          DateTime? recordDate = getRecordDate(item);
+      DateTime? recordDate = getRecordDate(item);
 
-          if (recordDate == null) {
-            return true;
-          }
+      // 🔥 IMPORTANT: Month filter must keep ABSENT records
+      if (selectedFilter == "Month") {
+        // If date exists → check month
+        if (recordDate != null) {
+          return recordDate.month == now.month &&
+              recordDate.year == now.year;
+        }
 
-          if (selectedFilter == "Week") {
-            DateTime now = DateTime.now();
+        // If date missing but check-in missing → ABSENT record → keep it
+        String? checkIn = item['check_in_time']?.toString();
+        if (checkIn == null ||
+            checkIn.isEmpty ||
+            checkIn == "00:00:00" ||
+            checkIn.toLowerCase() == "null") {
+          return true; // keep absent
+        }
 
-            // Week: Monday → Sunday
-            DateTime weekStart = now.subtract(Duration(days: now.weekday - 1));
-            DateTime weekEnd = weekStart.add(const Duration(days: 6));
+        return false;
+      }
 
-            return recordDate.isAfter(
-                  weekStart.subtract(const Duration(days: 1)),
-                ) &&
-                recordDate.isBefore(weekEnd.add(const Duration(days: 1)));
-          } else if (selectedFilter == "Month") {
-            return recordDate.month == now.month && recordDate.year == now.year;
-          } else if (selectedFilter == "Year") {
-            return recordDate.year == now.year;
-          } else if (selectedFilter == "Date") {
-            if (selectedDate == null) return false;
-            DateTime dClean = DateTime(
-              recordDate.year,
-              recordDate.month,
-              recordDate.day,
+      // -------- OTHER FILTERS --------
+      if (recordDate == null) return false;
+
+      if (selectedFilter == "Week") {
+        DateTime weekStart =
+        now.subtract(Duration(days: now.weekday - 1));
+        DateTime weekEnd = weekStart.add(const Duration(days: 6));
+        return recordDate.isAfter(
+          weekStart.subtract(const Duration(days: 1)),
+        ) &&
+            recordDate.isBefore(
+              weekEnd.add(const Duration(days: 1)),
             );
-            DateTime sClean = DateTime(
-              selectedDate!.year,
-              selectedDate!.month,
-              selectedDate!.day,
-            );
-            return dClean.isAtSameMomentAs(sClean);
-          }
+      }
 
-          return false;
-        }).toList();
+      if (selectedFilter == "Year") {
+        return recordDate.year == now.year;
+      }
+
+      if (selectedFilter == "Date" && selectedDate != null) {
+        DateTime dClean =
+        DateTime(recordDate.year, recordDate.month, recordDate.day);
+        DateTime sClean =
+        DateTime(selectedDate!.year, selectedDate!.month, selectedDate!.day);
+        return dClean.isAtSameMomentAs(sClean);
+      }
+
+      return false;
+    }).toList();
 
     filteredList.sort((a, b) {
-      DateTime da = getRecordDate(a) ?? DateTime.fromMillisecondsSinceEpoch(0);
-      DateTime db = getRecordDate(b) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      DateTime da = getRecordDate(a) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      DateTime db = getRecordDate(b) ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       return db.compareTo(da);
     });
 
@@ -480,67 +492,58 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Map<String, int> getAttendanceSummaryForFiltered() {
-    int full = 0, late = 0, half = 0, absent = 0, leave = 0;
+    int full = 0, late = 0, half = 0, leave = 0, absent = 0;
 
     for (var item in filteredList) {
       if (item == null || item is! Map) continue;
 
-      String status = (item['status'] ?? "").toString().toLowerCase();
-      String type = calculateDayType(item['check_in_time']);
-      DateTime? recordDate = getRecordDate(item);
+      String status = (item['status'] ?? '').toString().toLowerCase();
+      String? checkIn = item['check_in_time']?.toString();
 
-      // LEAVE
-      if (status == "leave") {
+      // 1️⃣ LEAVE (highest priority)
+      if (status == 'leave') {
         leave++;
         continue;
       }
 
-      // API Absent
-      if (status == "absent") {
+      // 2️⃣ ABSENT (explicit OR implicit)
+      bool isAbsent =
+          status == 'absent' ||
+              checkIn == null ||
+              checkIn.isEmpty ||
+              checkIn == '00:00:00' ||
+              checkIn.toLowerCase() == 'null';
+
+      if (isAbsent) {
         absent++;
         continue;
       }
 
-      // No check-in = Absent
-      if (item['check_in_time'] == null ||
-          item['check_in_time'].toString().trim().isEmpty ||
-          item['check_in_time'] == "00:00:00" ||
-          item['check_in_time'].toString().toLowerCase() == "null") {
-        absent++;
-        continue;
-      }
+      // 3️⃣ PRESENT TYPES
+      String type = calculateDayType(checkIn);
 
-      if (recordDate == null) {
-        absent++;
-        continue;
-      }
-
-      // Count attendance
-      if (type == "PRESENT")
+      if (type == 'PRESENT') {
         full++;
-      else if (type == "LATE PRESENT")
+      } else if (type == 'LATE PRESENT') {
         late++;
-      else if (type == "HALF DAY PRESENT")
+      } else if (type == 'HALF DAY PRESENT') {
         half++;
-      else
-        absent++;
+      }
     }
 
-    // Apply paid leave rule
-    int paidLeave = (leave >= 1) ? 1 : leave;
-    int unpaidLeave = (leave > 1) ? leave - 1 : 0;
-    absent += unpaidLeave;
-    int totalAttendance = full + late + half + paidLeave;
+    int paidLeave = leave >= 1 ? 1 : leave;
+
     return {
-      "full": full,
-      "late": late,
-      "half": half,
-      "leave": leave,
-      "paidLeave": paidLeave,
-      "absent": absent,
-      "totalAttendance": totalAttendance,
+      'full': full,
+      'late': late,
+      'half': half,
+      'leave': leave,
+      'paidLeave': paidLeave,
+      'absent': absent,
+      'totalAttendance': full + late + half + paidLeave,
     };
   }
+
 
   @override
   Widget build(BuildContext context) {
