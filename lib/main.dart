@@ -8,10 +8,10 @@ import 'LoginScreen.dart';
 import 'location_callback_handler.dart';
 import 'main_navigation.dart';
 
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  print("📩 Background Notification: ${message.notification?.title}");
-}
+// Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+//   await Firebase.initializeApp();
+//   print("📩 Background Notification: ${message.notification?.title}");
+// }
 
 void main() async {
   final WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -20,14 +20,14 @@ void main() async {
   await Firebase.initializeApp();
 
   // Background Notification Handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   // 🔥 Request Notification Permission (MANDATORY for Android 13+ & iOS)
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
+  // await FirebaseMessaging.instance.requestPermission(
+  //   alert: true,
+  //   badge: true,
+  //   sound: true,
+  // );
 
   // OPTIONAL: Delay for Splash Screen
   await Future.delayed(const Duration(seconds: 2));

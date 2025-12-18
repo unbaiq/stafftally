@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,7 +38,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
         fetchTaskData();
       }
     });
-    getFcmToken();
+    // getFcmToken();
     // LISTEN: Notification received when app is OPEN
     // FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     //   print("📩 New Push: ${message.notification?.title}");
@@ -58,15 +57,15 @@ class _TaskListScreenState extends State<TaskListScreen> {
     //   fetchTaskData();
     // });
     // LISTEN: When user taps the notification
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print("🔗 Notification Clicked");
-
-      // Open TaskListScreen (if not already open)
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const TaskListScreen()),
-      );
-    });
+    // FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    //   print("🔗 Notification Clicked");
+    //
+    //   // Open TaskListScreen (if not already open)
+    //   Navigator.push(
+    //     context,
+    //     MaterialPageRoute(builder: (_) => const TaskListScreen()),
+    //   );
+    // });
   }
 
   @override
