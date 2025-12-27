@@ -29,8 +29,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String? latestLat;
   String? latestLng;
   String? staffName;
-
   bool apiLoaded = false;
+
+  String _monthName(int month) {
+    const months = [
+      "", "January", "February", "March", "April",
+      "May", "June", "July", "August",
+      "September", "October", "November", "December"
+    ];
+    return months[month];
+  }
+
 
   @override
   void initState() {
@@ -492,7 +501,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Map<String, int> getAttendanceSummaryForFiltered() {
-    int full = 0, late = 0, half = 0, leave = 0, absent = 0;
+    int full = 0,
+        late = 0,
+        half = 0,
+        leave = 0;
 
     for (var item in filteredList) {
       if (item == null || item is! Map) continue;
@@ -500,38 +512,48 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       String status = (item['status'] ?? '').toString().toLowerCase();
       String? checkIn = item['check_in_time']?.toString();
 
-      // 1️⃣ LEAVE (highest priority)
+      // LEAVE
       if (status == 'leave') {
         leave++;
         continue;
       }
 
-      // 2️⃣ ABSENT (explicit OR implicit)
-      bool isAbsent =
-          status == 'absent' ||
-              checkIn == null ||
-              checkIn.isEmpty ||
-              checkIn == '00:00:00' ||
-              checkIn.toLowerCase() == 'null';
+      // PRESENT TYPES
+      if (checkIn != null &&
+          checkIn.isNotEmpty &&
+          checkIn != '00:00:00' &&
+          checkIn.toLowerCase() != 'null') {
+        String type = calculateDayType(checkIn);
 
-      if (isAbsent) {
-        absent++;
-        continue;
-      }
-
-      // 3️⃣ PRESENT TYPES
-      String type = calculateDayType(checkIn);
-
-      if (type == 'PRESENT') {
-        full++;
-      } else if (type == 'LATE PRESENT') {
-        late++;
-      } else if (type == 'HALF DAY PRESENT') {
-        half++;
+        if (type == 'PRESENT') full++;
+        if (type == 'LATE PRESENT') late++;
+        if (type == 'HALF DAY PRESENT') half++;
       }
     }
 
+    DateTime now = DateTime.now();
+    DateTime base = selectedDate ?? now;
+
+    int workingDays;
+
+    if (selectedFilter == "Month") {
+      workingDays = getWorkingDays(base.year, base.month);
+    } else if (selectedFilter == "Week") {
+      DateTime start = base.subtract(Duration(days: base.weekday - 1));
+      DateTime end = start.add(const Duration(days: 6));
+      workingDays = getWorkingDaysBetween(start, end);
+    } else if (selectedFilter == "Year") {
+      DateTime start = DateTime(base.year, 1, 1);
+      DateTime end = DateTime(base.year, 12, 31);
+      workingDays = getWorkingDaysBetween(start, end);
+    } else {
+      workingDays = filteredList.length;
+    }
+
     int paidLeave = leave >= 1 ? 1 : leave;
+
+    int absent = workingDays - (full + late + half + paidLeave);
+    if (absent < 0) absent = 0;
 
     return {
       'full': full,
@@ -543,8 +565,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       'totalAttendance': full + late + half + paidLeave,
     };
   }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1225,6 +1245,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                     s["absent"]!,
                                     Colors.redAccent,
                                   ),
+                                  // 🔥 MONTH-WISE ABSENT SUMMARY
+
                                 ],
                               ),
                             ],
